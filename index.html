@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Äther-Imperium: Chroniken des Dampfs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Roboto', sans-serif;
+        background-color: #1a1a2e;
+        color: #e0e0e0;
+        background-image:
+          radial-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 1px),
+          radial-gradient(rgba(212, 175, 55, 0.05) 1px, #1a1a2e 1px);
+        background-size: 40px 40px;
+        background-position: 0 0, 20px 20px;
+      }
+      h1, h2, h3, h4, h5, h6, .font-cinzel {
+        font-family: 'Cinzel', serif;
+      }
+      .steampunk-glass {
+        background-color: rgba(26, 26, 46, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+      }
+       .steampunk-border {
+        border: 1px solid;
+        border-image-slice: 1;
+        border-image-source: linear-gradient(to bottom right, #c0a062, #d4af37, #c0a062);
+      }
+      .steampunk-button {
+        background: linear-gradient(145deg, #3a3a5a, #2a2a4a);
+        border: 1px solid #c0a062;
+        color: #e0e0e0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+      }
+      .steampunk-button:hover {
+        background: linear-gradient(145deg, #4a4a6a, #3a3a5a);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+      }
+       .steampunk-button:disabled {
+        background: #2a2a4a;
+        cursor: not-allowed;
+        opacity: 0.5;
+        border-color: #6b5832;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1a1a2e;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #c0a062;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #d4af37;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "zustand/": "https://aistudiocdn.com/zustand@^5.0.8/",
+    "zustand": "https://aistudiocdn.com/zustand@^5.0.8"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
