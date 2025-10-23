@@ -274,6 +274,11 @@ const OverviewView: React.FC = () => {
         timingLabel = `Start in ${formatDuration(mission.launchAt - now)}`;
       } else if (mission.status === MissionStatus.Unterwegs) {
         timingLabel = `Ankunft in ${formatDuration(mission.arrivalAt - now)}`;
+      } else if (mission.status === MissionStatus.Rueckkehr) {
+        const eta = mission.returnArrivalAt ? mission.returnArrivalAt - now : 0;
+        timingLabel = `Rückkehr in ${formatDuration(eta)}`;
+      } else if (mission.status === MissionStatus.Abgebrochen) {
+        timingLabel = mission.cancelledAt ? `Abbruch vor ${formatDuration(now - mission.cancelledAt)}` : 'Abgebrochen';
       }
       return {
         id: mission.id,
@@ -282,6 +287,10 @@ const OverviewView: React.FC = () => {
         status: mission.status,
         type: mission.type,
         timingLabel,
+        canCancel: mission.status === MissionStatus.Geplant,
+        canRecall: mission.status === MissionStatus.Unterwegs,
+        isReturning: mission.status === MissionStatus.Rueckkehr,
+        isCancelled: mission.status === MissionStatus.Abgebrochen,
       };
     });
   }, [getSystemById, missions]);

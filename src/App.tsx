@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGameTick } from '@/hooks/useGameTick';
 import LeftNav from '@/components/layout/LeftNav';
 import MobileNav from '@/components/layout/MobileNav';
@@ -22,10 +22,17 @@ const App: React.FC = () => {
   const profiles = useDirectoryStore((state) => state.profiles);
   const closePlayerProfile = useDirectoryStore((state) => state.closePlayerProfile);
   const favoritePlanet = useDirectoryStore((state) => state.favoritePlanet);
+  const initializeDirectory = useDirectoryStore((state) => state.initialize);
   const ensureDirectRoom = useMessageStore((state) => state.ensureDirectRoom);
   const openRoom = useMessageStore((state) => state.openRoom);
   const addNote = useAllianceStore((state) => state.addNote);
+  const initializeAlliance = useAllianceStore((state) => state.initialize);
   const profile = openProfileId ? profiles[openProfileId] : undefined;
+
+  useEffect(() => {
+    initializeDirectory().catch(() => undefined);
+    initializeAlliance().catch(() => undefined);
+  }, [initializeAlliance, initializeDirectory]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
