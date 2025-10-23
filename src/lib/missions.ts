@@ -1,5 +1,5 @@
 import { MISSION_MIN_TRAVEL_TIME, MISSION_PREPARATION_TIME, MISSION_TRAVEL_TIME_PER_HEX } from '@/constants';
-import { Mission, MissionType } from '@/types';
+import { MissionType } from '@/types';
 
 /**
  * Human readable labels for the different mission archetypes.
@@ -37,15 +37,5 @@ export const buildMissionSchedule = (type: MissionType, distance: number, now: n
     launchAt,
     arrivalAt: launchAt + travelDuration,
     travelDuration,
-  };
-};
-
-/**
- * Calculates the return arrival timestamp for a recalled mission.
- */
-export const buildMissionReturnSchedule = (mission: Mission, now: number) => {
-  const travelDuration = mission.travelDuration;
-  return {
-    returnArrivalAt: now + travelDuration,
   };
 };

@@ -2,16 +2,12 @@ import { create } from 'zustand';
 import { Alliance } from '@/types';
 import { ALLIANCE_DIRECTORY, CURRENT_PLAYER_ID } from '@/lib/mockFactory';
 import { useDirectoryStore } from '@/store/directoryStore';
-import { fetchAllianceDirectory } from '@/lib/api/alliances';
 
 interface AllianceState {
   alliances: Alliance[];
   invites: Record<string, string>;
   myAllianceId?: string;
   currentPlayerId: string;
-  isLoading: boolean;
-  isReady: boolean;
-  error?: string;
 }
 
 interface CreateAlliancePayload {
@@ -21,8 +17,6 @@ interface CreateAlliancePayload {
 }
 
 interface AllianceActions {
-  initialize: () => Promise<void>;
-  refresh: () => Promise<void>;
   createAlliance: (payload: CreateAlliancePayload) => void;
   joinAlliance: (inviteCode: string) => void;
   leaveAlliance: () => void;
@@ -49,7 +43,9 @@ const buildInvites = (alliances: Alliance[]) =>
 
 const updatePlayerAlliance = (playerId: string, allianceId?: string) => {
   useDirectoryStore.setState((state) => ({
-    players: state.players.map((player) => (player.id === playerId ? { ...player, allianceId } : player)),
+    players: state.players.map((player) =>
+      player.id === playerId ? { ...player, allianceId } : player,
+    ),
     profiles: state.profiles[playerId]
       ? {
           ...state.profiles,
@@ -240,3 +236,125 @@ export const useAllianceStore = create<AllianceState & AllianceActions>((set, _g
     });
   },
 }));
+/**
+ * Lightweight client-side alliance store handling membership and notes.
+ */
+export const useAllianceStore = create<AllianceState & AllianceActions>((set, _get) => {
+  const initialAlliances = bootstrapAlliances();
+  const currentPlayer = CURRENT_PLAYER_ID;
+  const playerAlliance = initialAlliances.find((entry) => entry.members.includes(currentPlayer))?.id;
+  return {
+    alliances: initialAlliances,
+    invites: buildInvites(initialAlliances),
+    myAllianceId: playerAlliance,
+    currentPlayerId: currentPlayer,
+
+    createAlliance: ({ tag, name, color }) => {
+      set((state) => {
+        const allianceId = `alliance-${state.alliances.length + 1}-${Date.now()}`;
+        const newAlliance: Alliance = {
+          id: allianceId,
+          tag,
+          name,
+          color,
+          members: [state.currentPlayerId],
+          ranks:
+            state.alliances[0]?.ranks.map((rank) => ({ ...rank, permissions: { ...rank.permissions } })) ?? [],
+          pacts: [],
+          notes: ['* Frisch gegründete Bande – strukturiert eure Kommandokette.'],
+        };
+        const alliancesWithoutMember = state.myAllianceId
+          ? removeMemberFromAlliance(state.alliances, state.myAllianceId, state.currentPlayerId)
+          : state.alliances;
+        updatePlayerAlliance(state.currentPlayerId, allianceId);
+        return {
+          alliances: [...alliancesWithoutMember, newAlliance],
+          invites: { ...state.invites, [`${tag}-JOIN`]: allianceId },
+          myAllianceId: allianceId,
+        };
+      });
+    },
+
+    joinAlliance: (inviteCode) => {
+      set((state) => {
+        const allianceId = state.invites[inviteCode];
+        if (!allianceId) {
+          return {};
+        }
+        const alliancesWithoutMember = state.myAllianceId
+          ? removeMemberFromAlliance(state.alliances, state.myAllianceId, state.currentPlayerId)
+          : state.alliances;
+        const alliances = addMemberToAlliance(alliancesWithoutMember, allianceId, state.currentPlayerId);
+        updatePlayerAlliance(state.currentPlayerId, allianceId);
+        return {
+          alliances,
+          myAllianceId: allianceId,
+        };
+      });
+    },
+
+    leaveAlliance: () => {
+      set((state) => {
+        if (!state.myAllianceId) {
+          return {};
+        }
+        const alliances = removeMemberFromAlliance(state.alliances, state.myAllianceId, state.currentPlayerId);
+        updatePlayerAlliance(state.currentPlayerId, undefined);
+        return {
+          alliances,
+          myAllianceId: undefined,
+        };
+      });
+    },
+
+    setAllianceColor: (color) => {
+      set((state) => {
+        if (!state.myAllianceId) {
+          return {};
+        }
+        const alliances = state.alliances.map((alliance) =>
+          alliance.id === state.myAllianceId ? { ...alliance, color } : alliance,
+        );
+        return { alliances };
+      });
+    },
+
+    addNote: (text) => {
+      set((state) => {
+        if (!state.myAllianceId || !text.trim()) {
+          return {};
+        }
+        const alliances = state.alliances.map((alliance) =>
+          alliance.id === state.myAllianceId
+            ? { ...alliance, notes: [...alliance.notes, text.trim()] }
+            : alliance,
+        );
+        return { alliances };
+      });
+    },
+
+    addPact: (type, targetAllianceId) => {
+      set((state) => {
+        if (!state.myAllianceId || !targetAllianceId) {
+          return {};
+        }
+        const alliances = state.alliances.map((alliance) =>
+          alliance.id === state.myAllianceId
+            ? {
+                ...alliance,
+                pacts: [
+                  ...alliance.pacts,
+                  {
+                    id: `pact-${alliance.id}-${Date.now()}`,
+                    type,
+                    targetAllianceId,
+                  },
+                ],
+              }
+            : alliance,
+        );
+        return { alliances };
+      });
+    },
+  };
+});

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   ResourceType,
   Resources,
@@ -53,22 +52,11 @@ interface GameActions {
   getUpgradeCost: (entity: Building | Research, targetLevel: number) => Resources;
   getBuildTime: (cost: Resources) => number;
   startUpgrade: (entity: Building | Research) => void;
-  spendResources: (cost: Resources) => boolean;
-  refundResources: (refund: Resources) => void;
 }
 
 const RESOURCE_TYPES = Object.values(ResourceType) as ResourceType[];
 
 const createInitialKesseldruck = () => calculateKesseldruck(INITIAL_BUILDING_LEVELS);
-
-const clampResourcesToStorage = (resources: Resources, storage: Storage) => {
-  const clamped: Resources = { ...resources };
-  RESOURCE_TYPES.forEach((resource) => {
-    const capacity = storage[resource] ?? 0;
-    clamped[resource] = Math.min(capacity, clamped[resource] ?? 0);
-  });
-  return clamped;
-};
 
 interface ToastPayload {
   title: string;
@@ -80,8 +68,7 @@ interface ToastPayload {
  * Central Zustand store that manages the client-side simulation and progression state.
  */
 export const useGameStore = create<GameState & GameActions>()(
-  persist(
-    immer((set, get) => ({
+  immer((set, get) => ({
     resources: { ...INITIAL_RESOURCES },
     storage: { ...INITIAL_STORAGE },
     kesseldruck: { ...createInitialKesseldruck() },
@@ -154,27 +141,6 @@ export const useGameStore = create<GameState & GameActions>()(
       toasts.forEach((toast) => pushToast(toast));
     },
 
-    spendResources: (cost) => {
-      if (!get().canAfford(cost)) {
-        return false;
-      }
-      set((state) => {
-        RESOURCE_TYPES.forEach((resource) => {
-          state.resources[resource] -= cost[resource];
-        });
-      });
-      return true;
-    },
-
-    refundResources: (refund) => {
-      set((state) => {
-        RESOURCE_TYPES.forEach((resource) => {
-          const capacity = state.storage[resource];
-          state.resources[resource] = Math.min(capacity, state.resources[resource] + refund[resource]);
-        });
-      });
-    },
-
     gameTick: () => {
       const completionToasts: ToastPayload[] = [];
       set((state) => {
@@ -222,47 +188,4 @@ export const useGameStore = create<GameState & GameActions>()(
       }
     },
   })),
-    {
-      name: 'steam-war-raiders-game',
-      version: 1,
-      storage:
-        typeof window === 'undefined' ? undefined : createJSONStorage(() => window.localStorage),
-      partialize: (state) => ({
-        resources: state.resources,
-        storage: state.storage,
-        buildings: state.buildings,
-        research: state.research,
-        buildQueue: state.buildQueue,
-      }),
-      merge: (persistedState, currentState) => {
-        if (!persistedState) {
-          return currentState;
-        }
-        const persisted = persistedState as Partial<GameState>;
-        return {
-          ...currentState,
-          resources: { ...currentState.resources, ...(persisted.resources ?? {}) },
-          storage: { ...currentState.storage, ...(persisted.storage ?? {}) },
-          buildings: { ...currentState.buildings, ...(persisted.buildings ?? {}) },
-          research: { ...currentState.research, ...(persisted.research ?? {}) },
-          buildQueue: persisted.buildQueue ?? currentState.buildQueue,
-        };
-      },
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.error('Game store hydration failed', error);
-          return;
-        }
-        if (!state) {
-          return;
-        }
-        const kesseldruckState = calculateKesseldruck(state.buildings);
-        const clampedResources = clampResourcesToStorage(state.resources, state.storage);
-        useGameStore.setState({
-          kesseldruck: { ...kesseldruckState },
-          resources: clampedResources,
-        });
-      },
-    },
-  ),
 );

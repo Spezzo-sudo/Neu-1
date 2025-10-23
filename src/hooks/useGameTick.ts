@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { useMissionStore } from '@/store/missionStore';
-import { useShipyardStore } from '@/store/shipyardStore';
 import { TICK_INTERVAL } from '@/constants';
 
 /**
@@ -11,16 +10,13 @@ import { TICK_INTERVAL } from '@/constants';
 export const useGameTick = () => {
   const gameTick = useGameStore((state) => state.gameTick);
   const advanceMissions = useMissionStore((state) => state.advanceMissions);
-  const advanceShipyard = useShipyardStore((state) => state.advance);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      const now = Date.now();
       gameTick();
-      advanceMissions(now);
-      advanceShipyard(now);
+      advanceMissions(Date.now());
     }, TICK_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [advanceMissions, advanceShipyard, gameTick]);
+  }, [advanceMissions, gameTick]);
 };

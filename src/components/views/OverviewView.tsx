@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { BUILDINGS, RESEARCH, SERVER_SPEED } from '@/constants';
 import ProgressBar from '@/components/ui/ProgressBar';
@@ -50,8 +50,6 @@ const MISSION_STATUS_LABELS: Record<MissionStatus, string> = {
   [MissionStatus.Geplant]: 'Vorbereitung',
   [MissionStatus.Unterwegs]: 'Unterwegs',
   [MissionStatus.Abgeschlossen]: 'Abgeschlossen',
-  [MissionStatus.Rueckkehr]: 'Rückkehr',
-  [MissionStatus.Abgebrochen]: 'Abgebrochen',
 };
 
 const RESOURCE_DETAILS: Record<ResourceType, { label: string; icon: string }> = {
@@ -232,12 +230,6 @@ const OverviewView: React.FC = () => {
   const openProfile = useDirectoryStore((state) => state.openPlayerProfile);
   const favoritePlanet = useDirectoryStore((state) => state.favoritePlanet);
   const missions = useMissionStore((state) => state.missions);
-  const originPlanetId = useMissionStore((state) => state.originPlanetId);
-  const setOriginPlanet = useMissionStore((state) => state.setOriginPlanet);
-  const cancelMission = useMissionStore((state) => state.cancelMission);
-  const recallMission = useMissionStore((state) => state.recallMission);
-  const systems = useDirectoryStore((state) => state.systems);
-  const currentPlayerId = useDirectoryStore((state) => state.currentPlayerId);
 
   const groupedQueue = useMemo(() => {
     return buildQueue.reduce<Record<string, BuildQueueItem[]>>((acc, item) => {
@@ -302,35 +294,6 @@ const OverviewView: React.FC = () => {
       };
     });
   }, [getSystemById, missions]);
-
-  const ownedPlanets = useMemo(() => {
-    const planets: { id: string; label: string }[] = [];
-    systems.forEach((system) => {
-      system.planets.forEach((planet) => {
-        if (planet.ownerId === currentPlayerId) {
-          planets.push({
-            id: planet.id,
-            label: `${formatSystemCoordinate(system)}:${planet.slot} · ${planet.name}`,
-          });
-        }
-      });
-    });
-    return planets;
-  }, [currentPlayerId, systems]);
-
-  useEffect(() => {
-    if (ownedPlanets.length === 0) {
-      return;
-    }
-    const hasOrigin = ownedPlanets.some((planet) => planet.id === originPlanetId);
-    if (!hasOrigin) {
-      setOriginPlanet(ownedPlanets[0].id);
-    }
-  }, [ownedPlanets, originPlanetId, setOriginPlanet]);
-
-  const selectedOrigin = ownedPlanets.some((planet) => planet.id === originPlanetId)
-    ? originPlanetId
-    : ownedPlanets[0]?.id ?? '';
 
   return (
     <section className="space-y-8 pb-16">
@@ -428,26 +391,6 @@ const OverviewView: React.FC = () => {
             )}
             <div className="mt-5 border-t border-yellow-800/40 pt-4">
               <h4 className="font-cinzel text-sm uppercase tracking-wide text-yellow-300">Aktive Missionen</h4>
-              {ownedPlanets.length > 0 && (
-                <div className="mt-3 flex flex-col gap-2 text-xs text-gray-300 sm:flex-row sm:items-center sm:justify-between">
-                  <label htmlFor="originPlanet" className="font-semibold text-yellow-200">
-                    Startplanet auswählen
-                  </label>
-                  <select
-                    id="originPlanet"
-                    value={selectedOrigin}
-                    onChange={(event) => setOriginPlanet(event.target.value)}
-                    className={`w-full rounded-md border border-yellow-800/40 bg-black/60 px-3 py-2 text-sm text-gray-100 sm:w-auto ${FOCUS_OUTLINE.className}`}
-                    aria-label="Startplanet für Missionen"
-                  >
-                    {ownedPlanets.map((planet) => (
-                      <option key={planet.id} value={planet.id}>
-                        {planet.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
               {missionEntries.length > 0 ? (
                 <ul className="mt-3 space-y-2 text-sm text-gray-200">
                   {missionEntries.map((mission) => (
@@ -463,42 +406,10 @@ const OverviewView: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-right text-xs text-gray-300">
-                          <p
-                            className={`font-semibold ${
-                              mission.isCancelled
-                                ? 'text-red-300'
-                                : mission.isReturning
-                                ? 'text-yellow-300'
-                                : 'text-yellow-200'
-                            }`}
-                          >
-                            {MISSION_STATUS_LABELS[mission.status]}
-                          </p>
+                          <p className="font-semibold text-yellow-200">{MISSION_STATUS_LABELS[mission.status]}</p>
                           <p>{mission.timingLabel}</p>
                         </div>
                       </div>
-                      {(mission.canCancel || mission.canRecall) && (
-                        <div className="mt-3 flex flex-wrap justify-end gap-2 text-xs">
-                          {mission.canCancel && (
-                            <button
-                              type="button"
-                              onClick={() => cancelMission(mission.id)}
-                              className={`rounded-md border border-yellow-800/40 px-3 py-1 text-yellow-100 transition hover:bg-yellow-800/30 ${FOCUS_OUTLINE.className}`}
-                            >
-                              Abbrechen
-                            </button>
-                          )}
-                          {mission.canRecall && (
-                            <button
-                              type="button"
-                              onClick={() => recallMission(mission.id)}
-                              className={`rounded-md border border-yellow-800/40 px-3 py-1 text-yellow-100 transition hover:bg-yellow-800/30 ${FOCUS_OUTLINE.className}`}
-                            >
-                              Rückruf
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </li>
                   ))}
                 </ul>

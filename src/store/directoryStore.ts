@@ -8,7 +8,6 @@ import {
 } from '@/types';
 import { ALLIANCE_DIRECTORY, CURRENT_PLAYER_ID, PLAYER_DIRECTORY, SYSTEM_SNAPSHOT } from '@/lib/mockFactory';
 import { formatSystemCoordinate } from '@/lib/hex';
-import { fetchDirectorySnapshot, fetchPlayerProfile } from '@/lib/api/directory';
 
 interface DirectoryState {
   systems: GalaxySystem[];
@@ -17,15 +16,9 @@ interface DirectoryState {
   openProfileId: string | null;
   profiles: Record<string, PlayerProfile>;
   currentPlayerId: string;
-  allianceColors: Record<string, string>;
-  isLoading: boolean;
-  isReady: boolean;
-  error?: string;
 }
 
 interface DirectoryActions {
-  initialize: () => Promise<void>;
-  refresh: () => Promise<void>;
   openPlayerProfile: (playerId: string) => void;
   closePlayerProfile: () => void;
   favoritePlanet: (planetId: string) => void;
@@ -34,19 +27,6 @@ interface DirectoryActions {
   getAllianceColor: (allianceId?: string) => string | undefined;
   setPlanetOwner: (planetId: string, ownerId: string, allianceId?: string) => void;
 }
-
-interface DirectorySnapshot {
-  systems: GalaxySystem[];
-  players: Player[];
-  currentPlayerId: string;
-  allianceColors: Record<string, string>;
-}
-
-const buildAllianceColorMap = (alliances: { id: string; color: string }[]): Record<string, string> =>
-  alliances.reduce<Record<string, string>>((acc, alliance) => {
-    acc[alliance.id] = alliance.color;
-    return acc;
-  }, {});
 
 const deriveProfile = (
   playerId: string,
@@ -80,105 +60,28 @@ const deriveProfile = (
   };
 };
 
-const createFallbackSnapshot = (): DirectorySnapshot => ({
-  systems: SYSTEM_SNAPSHOT,
-  players: PLAYER_DIRECTORY,
-  currentPlayerId: CURRENT_PLAYER_ID,
-  allianceColors: buildAllianceColorMap(ALLIANCE_DIRECTORY.map((entry) => ({ id: entry.id, color: entry.color }))),
-});
-
-const applySnapshot = (set: (partial: Partial<DirectoryState>) => void, snapshot: DirectorySnapshot) => {
-  set({
-    systems: snapshot.systems,
-    players: snapshot.players,
-    currentPlayerId: snapshot.currentPlayerId,
-    allianceColors: snapshot.allianceColors,
-    isLoading: false,
-    isReady: true,
-  });
-};
-
-const mapResponseToSnapshot = (response: DirectorySnapshot): DirectorySnapshot => ({
-  systems: response.systems,
-  players: response.players,
-  currentPlayerId: response.currentPlayerId,
-  allianceColors: response.allianceColors,
-});
-
 /**
  * Zustand store for directory, profile and favorites state management.
  */
 export const useDirectoryStore = create<DirectoryState & DirectoryActions>((set, get) => ({
-  systems: [],
-  players: [],
+  systems: SYSTEM_SNAPSHOT,
+  players: PLAYER_DIRECTORY,
   favorites: [],
   openProfileId: null,
   profiles: {},
-  currentPlayerId: '',
-  allianceColors: {},
-  isLoading: false,
-  isReady: false,
-  error: undefined,
-
-  initialize: async () => {
-    if (get().isReady || get().isLoading) {
-      return;
-    }
-    await get().refresh();
-  },
-
-  refresh: async () => {
-    set({ isLoading: true, error: undefined });
-    try {
-      const response = await fetchDirectorySnapshot();
-      applySnapshot(set, mapResponseToSnapshot({
-        systems: response.systems,
-        players: response.players,
-        currentPlayerId: response.currentPlayerId,
-        allianceColors: buildAllianceColorMap(response.alliances),
-      }));
-    } catch (error) {
-      console.error('Directory snapshot fallback active:', error);
-      const fallback = createFallbackSnapshot();
-      applySnapshot(set, fallback);
-      set({ error: error instanceof Error ? error.message : 'Unbekannter Fehler beim Laden des Verzeichnisses.' });
-    }
-  },
+  currentPlayerId: CURRENT_PLAYER_ID,
 
   openPlayerProfile: (playerId) => {
-    set({ openProfileId: playerId });
-    const { profiles } = get();
-    if (profiles[playerId]) {
-      return;
-    }
-    (async () => {
-      try {
-        const profile = await fetchPlayerProfile(playerId);
-        set((state) => {
-          const favoriteSet = new Set(state.favorites);
-          return {
-            profiles: {
-              ...state.profiles,
-              [playerId]: {
-                ...profile,
-                planets: profile.planets.map((planet) => ({
-                  ...planet,
-                  isFavorite: favoriteSet.has(planet.planetId),
-                })),
-              },
-            },
-          };
-        });
-      } catch (error) {
-        console.warn('Falling back to derived profile for', playerId, error);
-        set((state) => ({
-          profiles: {
-            ...state.profiles,
-            [playerId]: deriveProfile(playerId, state.systems, state.favorites, state.players),
-          },
-        }));
+    set((state) => {
+      if (state.profiles[playerId]) {
+        return { openProfileId: playerId };
       }
-    })();
+      const profile = deriveProfile(playerId, state.systems, state.favorites, state.players);
+      return {
+        openProfileId: playerId,
+        profiles: { ...state.profiles, [playerId]: profile },
+      };
+    });
   },
 
   closePlayerProfile: () => set({ openProfileId: null }),
@@ -218,12 +121,8 @@ export const useDirectoryStore = create<DirectoryState & DirectoryActions>((set,
     if (!allianceId) {
       return undefined;
     }
-    const color = get().allianceColors[allianceId];
-    if (color) {
-      return color;
-    }
-    const fallbackAlliance = ALLIANCE_DIRECTORY.find((entry) => entry.id === allianceId);
-    return fallbackAlliance?.color;
+    const alliance = ALLIANCE_DIRECTORY.find((entry) => entry.id === allianceId);
+    return alliance?.color;
   },
 
   setPlanetOwner: (planetId, ownerId, allianceId) => {

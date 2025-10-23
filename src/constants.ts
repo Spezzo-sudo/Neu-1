@@ -360,24 +360,6 @@ export const SHIP_BLUEPRINTS: ShipBlueprint[] = [
 export const MISSION_PREPARATION_TIME = 5 * 60 * 1000;
 
 /**
- * Maximum amount of hangar slots that can be occupied across the player's fleet.
- */
-export const INITIAL_HANGAR_CAPACITY = 16;
-
-/**
- * Starting fleet composition used to determine the initial hangar utilisation.
- */
-export const INITIAL_FLEET_COMPOSITION: Record<string, number> = {
-  spaeherdrohne: 2,
-  kohlenfrachter: 1,
-};
-
-/**
- * Upper limit for concurrently tracked build orders in the shipyard.
- */
-export const MAX_SHIPYARD_QUEUE = 5;
-
-/**
  * Lower bound for the travel portion of a mission to avoid near-instant completions.
  */
 export const MISSION_MIN_TRAVEL_TIME = 8 * 60 * 1000;

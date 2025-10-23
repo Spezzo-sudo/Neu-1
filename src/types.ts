@@ -180,8 +180,6 @@ export enum MissionStatus {
   Geplant = 'planned',
   Unterwegs = 'enroute',
   Abgeschlossen = 'completed',
-  Rueckkehr = 'returning',
-  Abgebrochen = 'cancelled',
 }
 
 /**
@@ -210,27 +208,4 @@ export interface Mission {
   launchAt: number;
   arrivalAt: number;
   travelDuration: number;
-  returnArrivalAt?: number;
-  recalledAt?: number;
-  cancelledAt?: number;
-}
-
-/**
- * Represents a single build contract tracked by the shipyard.
- */
-export interface ShipBuildOrder {
-  id: string;
-  blueprintId: string;
-  quantity: number;
-  startTime: number;
-  endTime: number;
-  status: 'queued' | 'building' | 'completed' | 'cancelled';
-}
-
-/**
- * Summarises the amount of completed ships per blueprint currently occupying the hangar.
- */
-export interface FleetInventoryEntry {
-  blueprintId: string;
-  quantity: number;
 }

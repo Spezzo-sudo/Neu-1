@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { MISSION_PREPARATION_TIME } from '@/constants';
-import { buildMissionReturnSchedule, buildMissionSchedule, getMissionTypeLabel } from '@/lib/missions';
+import { buildMissionSchedule, getMissionTypeLabel } from '@/lib/missions';
 import { computeHexDistance, formatSystemCoordinate } from '@/lib/hex';
 import { Mission, MissionStatus, MissionType } from '@/types';
 import { ToastVariant, useUiStore } from '@/store/uiStore';
@@ -22,8 +22,6 @@ interface MissionActions {
   planMission: (payload: PlanMissionPayload) => void;
   setOriginPlanet: (planetId: string) => void;
   advanceMissions: (timestamp: number) => void;
-  cancelMission: (missionId: string) => void;
-  recallMission: (missionId: string) => void;
 }
 
 const resolvePlanet = (planetId: string) => {
@@ -137,50 +135,6 @@ export const useMissionStore = create<MissionState & MissionActions>()(
       set({ originPlanetId: planetId, originSystemId: context.system.id });
     },
 
-    cancelMission: (missionId) => {
-      const { pushToast } = useUiStore.getState();
-      set((state) => {
-        const mission = state.missions.find((entry) => entry.id === missionId);
-        if (!mission || mission.status !== MissionStatus.Geplant) {
-          return;
-        }
-        mission.status = MissionStatus.Abgebrochen;
-        mission.cancelledAt = Date.now();
-      });
-      const mission = get().missions.find((entry) => entry.id === missionId);
-      if (mission) {
-        pushToast({
-          title: `${getMissionTypeLabel(mission.type)} abgebrochen`,
-          description: 'Die Flotte verbleibt im Hangar.',
-          variant: ToastVariant.Warning,
-        });
-      }
-    },
-
-    recallMission: (missionId) => {
-      const { pushToast } = useUiStore.getState();
-      set((state) => {
-        const mission = state.missions.find((entry) => entry.id === missionId);
-        if (!mission || mission.status !== MissionStatus.Unterwegs) {
-          return;
-        }
-        const { returnArrivalAt } = buildMissionReturnSchedule(mission, Date.now());
-        mission.status = MissionStatus.Rueckkehr;
-        mission.recalledAt = Date.now();
-        mission.returnArrivalAt = returnArrivalAt;
-      });
-      const mission = get().missions.find((entry) => entry.id === missionId);
-      if (mission && mission.status === MissionStatus.Rueckkehr) {
-        const originSystem = resolvePlanet(mission.origin.planetId)?.system;
-        const coordinate = originSystem ? formatSystemCoordinate(originSystem) : mission.origin.systemId;
-        pushToast({
-          title: `${getMissionTypeLabel(mission.type)} zurückgerufen`,
-          description: `Ankunft in ${Math.round(((mission.returnArrivalAt ?? Date.now()) - Date.now()) / 60000)} Min. bei ${coordinate}:${mission.origin.slot}`,
-          variant: ToastVariant.Info,
-        });
-      }
-    },
-
     advanceMissions: (timestamp) => {
       const directory = useDirectoryStore.getState();
       const { pushToast } = useUiStore.getState();
@@ -190,7 +144,6 @@ export const useMissionStore = create<MissionState & MissionActions>()(
       set((state) => {
         state.missions.forEach((mission) => {
           const previousStatus = mission.status;
-          let captured = false;
           if (mission.status === MissionStatus.Geplant && timestamp >= mission.launchAt) {
             mission.status = MissionStatus.Unterwegs;
           }
@@ -199,15 +152,7 @@ export const useMissionStore = create<MissionState & MissionActions>()(
             if (mission.type === MissionType.Angriff || mission.type === MissionType.Kolonisierung) {
               mission.target.ownerId = directory.currentPlayerId;
               mission.target.allianceId = currentAllianceId;
-              captured = true;
             }
-          }
-          if (
-            mission.status === MissionStatus.Rueckkehr &&
-            mission.returnArrivalAt !== undefined &&
-            timestamp >= mission.returnArrivalAt
-          ) {
-            mission.status = MissionStatus.Abgeschlossen;
           }
           if (previousStatus !== mission.status) {
             const targetSystem = resolvePlanet(mission.target.planetId)?.system;
@@ -221,17 +166,12 @@ export const useMissionStore = create<MissionState & MissionActions>()(
               });
             }
             if (mission.status === MissionStatus.Abgeschlossen) {
-              const returning = mission.returnArrivalAt !== undefined && mission.recalledAt !== undefined;
               pushToast({
-                title: returning ? `${label} zurück im Hangar` : `${label} abgeschlossen`,
-                description: returning
-                  ? 'Die Flotte hat den Rückflug beendet.'
-                  : `${mission.target.planetName} erreicht.`,
-                variant: returning ? ToastVariant.Info : ToastVariant.Success,
+                title: `${label} abgeschlossen`,
+                description: `${mission.target.planetName} erreicht.`,
+                variant: ToastVariant.Success,
               });
-              if (!returning && captured) {
-                completed.push({ ...mission });
-              }
+              completed.push({ ...mission });
             }
           }
         });
